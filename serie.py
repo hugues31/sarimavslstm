@@ -19,7 +19,7 @@ class Serie:
         points = 1000
 
         self.nom = nom
-        self.modeles = [Naive(), SARIMA()]
+        self.modeles = [Naive(), SARIMA(), LSTM()]
 
         # charge fichier CSV
         if csv_file:

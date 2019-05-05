@@ -81,7 +81,7 @@ class LSTM(Modele):
 
         print("Fit du modèle " + key + " en cours...")
 
-        iter = 80 if final else 20 # entraînement final du modèle retenu
+        iter = 20 if final else 2 # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
