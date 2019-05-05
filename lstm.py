@@ -1,3 +1,4 @@
+from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential
 from keras.layers import LSTM as kLSTM
 from keras.layers import Dense
@@ -33,7 +34,7 @@ class LSTM(Modele):
 
         config_list = list()
         for h in range(1,4):
-            for i in [50, 20, 100]:
+            for i in [5, 20, 100]:
                 for n in [10, 50, 200]:
                     for f in ['tanh', 'relu', 'sigmoid']:
                         for d in [0.0, 0.2]:
@@ -89,10 +90,23 @@ class LSTM(Modele):
         activation = config.get("activation")
         dropout = config.get("dropout")
 
-        # TODO: MinMaxScaler
+        nbre_retards = np.count_nonzero(np.isnan(self.serie.data['Série stationnarisée']))
+
+        # MinMaxScaler
+        donnees_brutes = self.serie.data['Série stationnarisée'][0:self.serie.index_fin_entrainement].dropna(
+        ).values
+        scaler = MinMaxScaler(feature_range=(-1, 1))
+        scaler = scaler.fit(np.array(donnees_brutes).reshape(-1,1))
+        serie_reduite = scaler.transform(np.array(self.serie.data['Série stationnarisée'].dropna().values).reshape(-1,1))
+        a = np.empty((1, nbre_retards))
+        a[:] = np.nan
+        serie_reduite = np.concatenate((a, np.array(serie_reduite)), axis=0)
+        
+        self.serie.data['Série stationnarisée réduite'] = serie_reduite
+        print(self.serie.data)
 
         X_train, y_train = decouper_serie_apprentissage_supervise(
-            self.serie.data['Série stationnarisée'][0:self.serie.index_fin_entrainement].dropna().values, taille)
+            self.serie.data['Série stationnarisée réduite'][0:self.serie.index_fin_entrainement].dropna().values, taille)
 
         n_features = 1  # une variable explicative
         X_train = X_train.reshape(
@@ -118,7 +132,7 @@ class LSTM(Modele):
 
         model.compile(optimizer=methode_optimisation, loss='mse')
 
-        nbre_retards = np.count_nonzero(np.isnan(self.serie.data['Série stationnarisée']))
+
 
         # Fit du modèle
         model.fit(X_train, y_train, epochs=iter, verbose=final)
@@ -128,11 +142,17 @@ class LSTM(Modele):
         # walk-forward validation
         for i in range(0, len(self.serie.data['Test'].dropna())+len(self.serie.data['Validation'].dropna())):
 
-            x_input = self.serie.data['Série stationnarisée'][self.serie.index_fin_entrainement -
+            x_input = self.serie.data['Série stationnarisée réduite'][self.serie.index_fin_entrainement -
                                                               taille+i:self.serie.index_fin_entrainement+i].values
 
             x_input = x_input.reshape((1, taille, n_features))
             yhat = model.predict(x_input, verbose=0)[0][0]
+
+            # inversion de la mise à l'échelle
+            padding = np.zeros(taille-1).reshape(1, taille - 1)
+            yhat = np.append(padding, [yhat]).reshape(1,-1)
+            yhat = scaler.inverse_transform(yhat)
+            yhat = yhat[0][-1]
 
             # déstationnarisation
             yhat = yhat + \
