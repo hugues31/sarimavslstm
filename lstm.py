@@ -1,10 +1,13 @@
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential
 from keras.layers import LSTM as kLSTM
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras import optimizers
-from fonctions import MSE
+from sklearn.metrics import mean_squared_error
+from keras.callbacks import EarlyStopping
+from keras.utils import plot_model
 
 import numpy as np
 
@@ -24,16 +27,16 @@ class LSTM(Modele):
     def trouver_hyperparametres(self):
         try:
             import joblib
-            print("Entrainement SARIMA en parallèle.")
+            print("Entrainement LSTM en parallèle.")
             parallel = True
 
         except ImportError:
             print("Il est recommandé d'installer joblib (pip3 install joblib)\
                 pour profiter d'une amélioration des performances.")
             parallel = False
-
+        parallel = False
         config_list = list()
-        for h in range(1,4):
+        for h in range(0,4):
             for i in [5, 20, 100]:
                 for n in [10, 50, 200]:
                     for f in ['tanh', 'relu', 'sigmoid']:
@@ -58,12 +61,12 @@ class LSTM(Modele):
             scores = executor(tasks)
         
         else:
-            scores = [self.fit_modele(config) for config in config_list]
+            scores = [self.fit_modele(config) for config in config_list[0:2]]
 
         # Enleve les scores vides
         scores = [r for r in scores if r[1] != None]
 
-        # Trie par les configurations par erreur
+        # Trie les configurations par erreur
         scores.sort(key=lambda tup: tup[1])
 
         # Affiche les 3 meilleures configurations
@@ -82,7 +85,7 @@ class LSTM(Modele):
 
         print("Fit du modèle " + key + " en cours...")
 
-        iter = 20 if final else 2 # entraînement final du modèle retenu
+        iter = 500 if final else 20 # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
@@ -103,39 +106,51 @@ class LSTM(Modele):
         serie_reduite = np.concatenate((a, np.array(serie_reduite)), axis=0)
         
         self.serie.data['Série stationnarisée réduite'] = serie_reduite
-        print(self.serie.data)
 
         X_train, y_train = decouper_serie_apprentissage_supervise(
             self.serie.data['Série stationnarisée réduite'][0:self.serie.index_fin_entrainement].dropna().values, taille)
 
+        X_test, y_test = decouper_serie_apprentissage_supervise(
+            self.serie.data['Série stationnarisée réduite'][self.serie.index_fin_entrainement:self.serie.index_fin_test].dropna().values, taille)
+
         n_features = 1  # une variable explicative
         X_train = X_train.reshape(
             (X_train.shape[0], X_train.shape[1], n_features))
+        X_test = X_test.reshape(
+            (X_test.shape[0], X_test.shape[1], n_features))
 
         # Création du réseau de neurones
         model = Sequential()
 
         # couche d'entrée
-        model.add(kLSTM(nbre_neurones, activation=activation, return_sequences=True,
-                            input_shape=(taille, n_features)))
-        model.add(Dropout(dropout))  # ajout d'un dropout
-
-        # couches cachées
         for i in range(0, nbre_couches):
-            model.add(kLSTM(nbre_neurones, activation=activation))
+            model.add(kLSTM(nbre_neurones, activation=activation, return_sequences=True,
+                                input_shape=(taille, n_features)))
             model.add(Dropout(dropout))  # ajout d'un dropout
+
+        # dernière couche (pas de retour)
+        model.add(kLSTM(nbre_neurones, activation=activation))
+        model.add(Dropout(dropout))  # ajout d'un dropout
+        
 
         # couche de sortie (1 dimension)
         model.add(Dense(1))
 
         methode_optimisation = optimizers.Nadam()
 
-        model.compile(optimizer=methode_optimisation, loss='mse')
+        model.compile(optimizer=methode_optimisation,
+                      loss='mse')
 
-
+        # Critère d'arret prématuré, aucune amélioration sur le jeu de test
+        # pendant plus de 30 itérations
+        critere_stop = EarlyStopping(monitor='val_loss', min_delta=0, patience=30)
 
         # Fit du modèle
-        model.fit(X_train, y_train, epochs=iter, verbose=final)
+        historique = model.fit(
+            X_train, y_train, validation_data=(X_test, y_test), epochs=iter, verbose=final, callbacks=[critere_stop], shuffle=False)
+
+        if final: # sauvegarde de l'historique d'entrainement si modèle final
+            self.historique = historique
 
         # Prédiction sur jeu de test + validation
         serie_predite = []
@@ -164,10 +179,13 @@ class LSTM(Modele):
         a[:] = np.nan
         serie_predite = np.concatenate((a[0], np.array(serie_predite)), axis=0)
 
-        resultat = MSE(serie_predite[self.serie.index_fin_entrainement:self.serie.index_fin_test], self.serie.data['Test'].dropna())
+        # calcul du MSE uniquement sur le jeu de test
+        resultat = mean_squared_error(
+    serie_predite[self.serie.index_fin_entrainement:self.serie.index_fin_test], self.serie.data['Test'].dropna())
 
         if final:
             self.serie.data[self.__class__.__name__] = serie_predite
+            self.modele = model
         
         return (key, resultat)
 
@@ -177,6 +195,23 @@ class LSTM(Modele):
 
         print("Entraînement du modèle retenu...")
         self.fit_modele(self.config, True)
-       
+
+    def description_modele(self):
+        # Evolution de la perte / perte sur ensemble de validation
+        plt.figure(figsize=(10, 5))
+        plt.plot(self.historique.history['loss'])
+        plt.plot(self.historique.history['val_loss'])
+        plt.title('Évolution de la perte du modèle')
+        plt.ylabel('Perte')
+        plt.xlabel('Itération')
+        plt.legend(['Entraînement', 'Test'], loc='upper right')
+        plt.savefig("outputs/" + self.nom_sauvegarde + '_evolution_perte.pdf', dpi=300)
+        plt.show()
+
+        # Graphique du modèle retenu
+        plot_model(self.modele, to_file="outputs/" + self.nom_sauvegarde +
+                   "_schema.pdf", show_shapes=True, expand_nested=True, dpi=300)
+
+            
 
 

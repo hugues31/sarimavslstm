@@ -18,3 +18,6 @@ class Naive(Modele):
     def fit(self):
         self.serie.data[self.__class__.__name__] = self.serie.data['Série'][self.serie.index_fin_entrainement-1:].shift(
             periods=1)
+
+    def description_modele(self):
+        pass

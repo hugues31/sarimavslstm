@@ -8,25 +8,26 @@ import numpy as np
 from statsmodels.tsa.stattools import adfuller
 
 entrainement = 0.6  # 60% du jeu de données sert à l'entraînement
-test = 0.2          # 20% du jeu de données sert aux tests
-validation = 0.2    # 20% du jeu de donénes sert à la validation
+test = 0.2          # 20% du jeu de données sert aux tests (20 derniers % pour la validation)
 
 class Serie:
     data = []       # Pandas dataframe
     modeles = []
 
     def __init__(self, nom, csv_file=None, formule=None, std=None):
-        points = 1000
+        points = 160
 
         self.nom = nom
-        self.modeles = [Naive(), LSTM()]
+        self.nom_sauvegarde = nom.replace(" ", "_").lower().replace("é","e")
+        self.modeles = [Naive(), SARIMA(), LSTM()]
 
         # charge fichier CSV
         if csv_file:
-            pass
+            self.data = pd.read_csv("datasets/" + csv_file)
+
 
         # créé des données à partir d'une formule
-        if formule:
+        elif formule:
             Y = []
             X = []
             for x in range(0, points):
@@ -37,12 +38,13 @@ class Serie:
                                      columns=['Série'])
 
 
-            # ajout de bruit blanc (centré/réduit)
+            # ajout de bruit blanc (centré)
             mu, sigma = 0, std # moyenne et écart type du bruit
             self.data['Bruit'] = pd.DataFrame(
                 np.random.normal(mu, sigma, size=points))
 
-            self.data['Série'] += self.data['Bruit']
+            self.data['Série'] = self.data['Série'] + \
+                self.data['Bruit']
 
         self.stationnariser()
 
@@ -94,11 +96,19 @@ class Serie:
             donnees[modele.__class__.__name__] = modele.serie.data[modele.__class__.__name__]
             legende.append("Prévision " + str(modele.__class__.__name__))
 
-        plt.plot(donnees)
+        # ratio d'affichage carré 4:10 (en inch)
+        plt.figure(figsize=(10, 4))
+        
+        previsions = 20 # 20 dernières prévisions
+        plt.plot(donnees.tail(previsions))  
+        plt.xticks(np.arange(len(donnees)-previsions, len(donnees), step=1))
         plt.gca().legend(legende)
-        plt.title("Prévisions des modèles sur " + self.nom)
+        plt.title(str(previsions) + " dernières prévisions des modèles sur " + self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
+        plt.savefig("outputs/" + self.nom_sauvegarde +
+            '_previsions_serie.pdf', dpi=300, bbox_inches='tight',
+            pad_inches=0)
         plt.show()
 
     def graphique_sous_serie(self):
@@ -106,6 +116,7 @@ class Serie:
             Affiche uniquement la série, décomposée en 3 sous-séries
         """
 
+        plt.figure(figsize=(10, 4))
         plt.plot(self.data['Entraînement'])
         plt.plot(self.data['Test'])
         plt.plot(self.data['Validation'])
@@ -114,15 +125,18 @@ class Serie:
         plt.title(self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
+        plt.savefig("outputs/" + self.nom_sauvegarde +
+                    '_presentation_serie.pdf', dpi=300, bbox_inches='tight',
+                    pad_inches=0)
         plt.show()
-    
+
     def graphique_serie_stationnarisee(self):
         """
             Affiche uniquement la série stationnarisée avec la distribution
             des résidus et le test de Dickey Fuller augmenté
         """
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(10,10)) # ratio d'affichage carré 1:1 (en inch)
 
 
         ax1 = fig.add_subplot(2, 1, 1)
@@ -135,20 +149,24 @@ class Serie:
         plt.hist(self.data['Série stationnarisée'].dropna(), bins=30)
 
         ax3 = fig.add_subplot(2,2,4)
-        ax3.set_title('Test de Dickey-Fuller augmenté')
+        ax3.set_title('Test de Dickey-Fuller augmenté', weight='bold')
         ax3.set_axis_off()
 
         result = adfuller(self.data['Série stationnarisée'].dropna())
 
         ax3.text(0, 0.9, 'Valeur ADF : %f' % result[0], fontsize=12)
         ax3.text(0, 0.7, 'p-value : %f' % result[1], fontsize=12)
-        ax3.text(0, 0.5, 'Valeurs critiques', fontsize=12, weight='bold')
+        ax3.text(0, 0.5, 'Valeurs critiques', fontsize=12)
         y = 0.4
         for key, value in result[4].items():
             ax3.text(0, y, '%s : %.3f' % (key, value), fontsize=11)
             y -= 0.1
 
+        plt.savefig("outputs/" + self.nom_sauvegarde +
+                    '_stationnarisation_serie.pdf', dpi=300, bbox_inches='tight',
+                    pad_inches=0)
         plt.show()
+    
 
     def recapitulatif(self):
         """
@@ -162,6 +180,7 @@ class Serie:
         print("| Observations : " + str(self.longueur))
         for modele in self.modeles:
             modele.recapitulatif()
+            modele.description_modele()
         print("======================================")
 
         self.graphique_sous_serie()

@@ -1,14 +1,15 @@
 from modele import Modele
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import numpy as np
-from fonctions import MSE
+from sklearn.metrics import mean_squared_error
 import math
-
+import matplotlib.pyplot as plt
+from pandas import DataFrame
 
 class SARIMA(Modele):
     """
-        Cette classe implémetne le modèle ARMA avec différenciation intégrée
-        et gestion d'une saisonnalité simple.
+        Cette classe implémente le modèle ARMA avec différenciation intégrée
+        et gestion d'une saisonnalité simple (SARIMA).
     """
 
     def __init__(self):
@@ -28,23 +29,28 @@ class SARIMA(Modele):
         config_list = list()
         # grid search
         for p in range(0, 3):
-            for d in [1]:
+            for d in [0, 1]:
                 for q in range(0, 3):
                     for P in range(0, 3):
-                        for D in [1]:
+                        for D in [0, 1]:
                             for Q in range(0, 3):
                                 for m in [0,12]:
                                     for t in ['n', 'c', 't', 'ct']:
                                         config = ((p, d, q), (P, D, Q, m), t)
                                         config_list.append(config)
-
+        config_list.clear()
+        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
+        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
+        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
+        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
+        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
         print("Taille des combinaisons SARIMA : " + str(len(config_list)))
 
         if parallel:
             executor = joblib.Parallel(joblib.cpu_count(
             ), backend='multiprocessing', verbose=50, batch_size='auto')
             tasks = (joblib.delayed(self.fit_modele)(config)
-                    for config in config_list[0:8])
+                    for config in config_list)
         
             scores = executor(tasks)
         
@@ -90,7 +96,7 @@ class SARIMA(Modele):
                                 trend=config[2],
                                 simple_differencing=False)
 
-                modele_fit = modele.fit(disp=False, method='lbfgs')
+                modele_fit = modele.fit(disp=False)
 
                 if modele_fit.mle_retvals['converged'] == False:
                     print("     > Convergence non atteinte pour " + str(config))
@@ -101,8 +107,12 @@ class SARIMA(Modele):
                 serie_predite.append(valeur_prevue.values[0])
 
             if not final:
-                resultat = MSE(
+                resultat = mean_squared_error(
                     serie_predite[0:len(self.serie.data['Test'].dropna())], self.serie.data['Test'].dropna())
+            
+            else:
+                # on conserve le modele pour obtenir d'autres infos plus tard
+                self.modele_fit = modele_fit
 
         except KeyboardInterrupt:
             print("Arrêt...")
@@ -123,3 +133,23 @@ class SARIMA(Modele):
     def fit(self):
         print("Configuration SARIMA retenue : " + str(self.config))
         self.serie.data[self.__class__.__name__] = self.fit_modele(self.config, True)
+
+        print(self.modele_fit.summary())
+
+        residuals = DataFrame(self.modele_fit.resid)
+        print(residuals.describe())
+    
+    def description_modele(self):
+
+        # affichage de la distribution des résidus
+        plt.figure(figsize=(10, 4))
+        plt.title("Résidus issus du modèle")
+        plt.plot(self.modele_fit.resid)
+        plt.show()
+
+        plt.figure(figsize=(10, 4))
+        plt.title("Distribution des résidus")
+        plt.hist(self.modele_fit.resid, bins=30)
+        plt.show()
+
+

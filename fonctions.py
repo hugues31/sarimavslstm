@@ -1,15 +1,5 @@
 from numpy import array
 
-def MSE(estimee, reelle):
-    """
-        Calcul le Mean Square Error entre la série estimée et la série réelle
-    """
-
-    assert len(estimee) == len(reelle)
-
-    return round(float(((estimee - reelle) ** 2).mean() ** .5), 5)
-
-
 def decouper_serie_apprentissage_supervise(serie, taille):
     """
         Découpe une série en n échantillons de taille 'taille'
@@ -28,3 +18,11 @@ def decouper_serie_apprentissage_supervise(serie, taille):
             X.append(seq_x)
             y.append(seq_y)
     return array(X), array(y)
+
+
+def tableau_en_latex(tableau):
+    """
+        Permet de créer un tableau Latex à partir d'un tableau Python à deux
+        dimensions. La première ligne est l'en-tête du tableau.
+    """
+    pass
