@@ -15,3 +15,4 @@ stepwise_fit = pm.auto_arima(wineind, start_p=1, start_q=1,
                              stepwise=True)  # set to stepwise
 
 print(stepwise_fit.summary())
+print(stepwise_fit.get_params())

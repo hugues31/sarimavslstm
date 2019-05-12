@@ -1,6 +1,7 @@
 from modele import Modele
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import numpy as np
+import pmdarima as pm
 from sklearn.metrics import mean_squared_error
 import math
 import matplotlib.pyplot as plt
@@ -16,61 +17,26 @@ class SARIMA(Modele):
         pass
 
     def trouver_hyperparametres(self):
-        try:
-            import joblib
-            print("Entrainement SARIMA en parallèle.")
-            parallel = True
+        stepwise_fit = pm.auto_arima(self.serie.data['Série'][0:self.serie.index_fin_test], start_p=1, start_q=1,
+                                     max_p=3, max_q=3, m=12,
+                                     start_P=0, seasonal=True, trace=True,
+                                     error_action='ignore',  # don't want to know if an order does not work
+                                     suppress_warnings=True,  # don't want convergence warnings
+                                     stepwise=True,
+                                     out_of_sample_size=self.serie.index_fin_test-self.serie.index_fin_entrainement,
+                                     scoring='mse')  # set to stepwise
 
-        except ImportError:
-            print("Il est recommandé d'installer joblib (pip3 install joblib)\
-                pour profiter d'une amélioration des performances.")
-            parallel = False
-
-        config_list = list()
-        # grid search
-        for p in range(0, 3):
-            for d in [0, 1]:
-                for q in range(0, 3):
-                    for P in range(0, 3):
-                        for D in [0, 1]:
-                            for Q in range(0, 3):
-                                for m in [0,12]:
-                                    for t in ['n', 'c', 't', 'ct']:
-                                        config = ((p, d, q), (P, D, Q, m), t)
-                                        config_list.append(config)
-        config_list.clear()
-        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
-        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
-        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
-        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
-        config_list.append(((2, 0, 1), (1, 0, 0, 12), 't'))
-        print("Taille des combinaisons SARIMA : " + str(len(config_list)))
-
-        if parallel:
-            executor = joblib.Parallel(joblib.cpu_count(
-            ), backend='multiprocessing', verbose=50, batch_size='auto')
-            tasks = (joblib.delayed(self.fit_modele)(config)
-                    for config in config_list)
-        
-            scores = executor(tasks)
-        
-        else:
-            scores = [self.fit_modele(config) for config in config_list]
-
-        # Enleve les scores vides
-        scores = [r for r in scores if r[1] != None]
-
-        # Trie par les configurations par erreur
-        scores.sort(key=lambda tup: tup[1])
-
-        # Affiche les 3 meilleures configurations
-        print("Les 3 meilleurs configurations SARIMA sont : ")
-        print(scores[0:3])
-
-        self.config = eval(scores[0][0])
+        print(stepwise_fit.summary())
+        print(stepwise_fit.get_params())
+        params = stepwise_fit.get_params()
+        ordres = params['order']
+        ordres_saisonniers = params['seasonal_order']
+    
+        config = (ordres, ordres_saisonniers, 'c')
+        self.config = config
 
 
-    def fit_modele(self, config, final=False):
+    def fit_modele(self, config):
         """
             Fait un fit d'un modèle SARIMA selon les paramètres contenus dans
             config (p,d,q,P,D,Q,s,t)
@@ -80,59 +46,55 @@ class SARIMA(Modele):
 
         print("Fit du modèle " + key + " en cours...")
 
-        try:
-            # Prédiction sur jeu de test + validation
-            serie_predite = []
+        # try:
+        # Prédiction sur jeu de test + validation
+        serie_predite = []
 
-            # walk-forward validation
-            longueur_test = len(self.serie.data['Test'].dropna())
-            if final:
-                longueur_test += len(self.serie.data['Validation'].dropna())
+        # walk-forward validation
+        longueur_test = len(self.serie.data['Test'].dropna())
+        longueur_test += len(self.serie.data['Validation'].dropna())
 
-            for i in range(0, longueur_test):
-                modele = SARIMAX(self.serie.data['Série'][0:self.serie.index_fin_entrainement+i],
-                                order=config[0],
-                                seasonal_order=config[1],
-                                trend=config[2],
-                                simple_differencing=False)
+        for i in range(0, longueur_test):
+            modele = SARIMAX(self.serie.data['Série'][0:self.serie.index_fin_entrainement+i],
+                            order=config[0],
+                            seasonal_order=config[1],
+                            trend=config[2],
+                            simple_differencing=False)
 
-                modele_fit = modele.fit(disp=False)
+            modele_fit = modele.fit(disp=False, method='lbfgs', maxiter=50)
 
-                if modele_fit.mle_retvals['converged'] == False:
-                    print("     > Convergence non atteinte pour " + str(config))
-                    return (key, resultat)
+            if modele_fit.mle_retvals['converged'] == False:
+                print("     > Convergence non atteinte pour " + str(config))
+                return (key, resultat)
 
-                valeur_prevue = modele_fit.forecast()
+            print(modele_fit.predict(start=self.serie.index_fin_entrainement, end=len(self.serie.data['Série'])-1))
+            print("--> " + str(longueur_test))
+            1/0
+            valeur_prevue = modele_fit.forecast()
 
-                serie_predite.append(valeur_prevue.values[0])
+            serie_predite.append(valeur_prevue.values[0])
 
-            if not final:
-                resultat = mean_squared_error(
-                    serie_predite[0:len(self.serie.data['Test'].dropna())], self.serie.data['Test'].dropna())
-            
-            else:
-                # on conserve le modele pour obtenir d'autres infos plus tard
-                self.modele_fit = modele_fit
+        # on conserve le modele pour obtenir d'autres infos plus tard
+        self.modele_fit = modele_fit
 
-        except KeyboardInterrupt:
-            print("Arrêt...")
+        # except KeyboardInterrupt:
+            # print("Arrêt...")
 
-        except:
-            print("     > Configuration impossible : " + str(config))
+        # except:
+        #     print("     > Configuration impossible : " + str(config))
         
-        if final:
-            # ajout d'un padding avec des nan
-            a = np.empty(
-                (1, len(self.serie.data['Entraînement'].dropna())))
-            a[:] = np.nan
-            serie_predite = np.concatenate((a[0], np.array(serie_predite)), axis=0)
-            return serie_predite
+    
+        # ajout d'un padding avec des nan
+        a = np.empty(
+            (1, len(self.serie.data['Entraînement'].dropna())))
+        a[:] = np.nan
+        serie_predite = np.concatenate((a[0], np.array(serie_predite)), axis=0)
+        return serie_predite
 
-        return (key, resultat)
 
     def fit(self):
         print("Configuration SARIMA retenue : " + str(self.config))
-        self.serie.data[self.__class__.__name__] = self.fit_modele(self.config, True)
+        self.serie.data[self.__class__.__name__] = self.fit_modele(self.config)
 
         print(self.modele_fit.summary())
 
