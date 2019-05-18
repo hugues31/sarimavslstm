@@ -12,12 +12,11 @@ def charger_series():
 
     # Tendance linéaire + saisonnalité de période 12 multiplicative
     serie_3 = Serie("Série 3", formule="sin(x*pi/6)*4*(0.01*x)+0.3*x", std=1.8)
+    return [serie_3]
 
     # Tendance non polynomiale + saisonnalités imbriquées non multiples 
     serie_4 = Serie(
         "Série 4", formule="(sin(x*pi/3.5)*18-sin(x*pi/6)*15)+sin(x*pi/40)*40+((4*x)**0.4)*30", std=2.8)
-    
-
 
     serie_bitcoin = Serie("Rendement horaire du Bitcoin", csv_file="rendements_bitcoin_4H.csv")
     
