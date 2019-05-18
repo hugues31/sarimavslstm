@@ -19,7 +19,7 @@ class Serie:
 
         self.nom = nom
         self.nom_sauvegarde = nom.replace(" ", "_").lower().replace("é","e")
-        self.modeles = [Naive(), LSTM()]
+        self.modeles = [Naive(), SARIMA(), LSTM()]
 
         # charge fichier CSV
         if csv_file:
@@ -132,10 +132,9 @@ class Serie:
         # Prévisions sur le jeu de test + validation
         previsions = int((1 - entrainement) * len(self.data))
         plt.plot(donnees.tail(previsions))
-        plt.xticks(np.arange(len(donnees)-previsions, len(donnees), step=1))
+        # plt.xticks(np.arange(len(donnees)-previsions, len(donnees), step=1))
         plt.gca().legend(legende)
-        plt.title(str(previsions) +
-                  " dernières prévisions dynamiques des modèles sur " + self.nom)
+        plt.title("Prévisions dynamiques sur l'ensemble test + validation des modèles sur " + self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
         plt.savefig("outputs/" + self.nom_sauvegarde +

@@ -18,7 +18,7 @@ class SARIMA(Modele):
 
     def trouver_hyperparametres(self):
         stepwise_fit = pm.auto_arima(self.serie.data['Série'][0:self.serie.index_fin_test],
-                                     start_p=2, d=None, start_q=2, max_p=5, max_d=2, max_q=5, start_P=1, D=None, start_Q=1, max_P=2, max_D=1, max_Q=2, m=12, seasonal=True, trace=True,
+                                     start_p=2, d=None, start_q=2, max_p=2, max_d=2, max_q=2, start_P=1, D=None, start_Q=1, max_P=1, max_D=1, max_Q=1, m=12, seasonal=True, trace=True,
                                      error_action='ignore',
                                      suppress_warnings=True,
                                      stepwise=True,
@@ -53,20 +53,35 @@ class SARIMA(Modele):
         longueur_test = len(self.serie.data['Test'].dropna())
         longueur_test += len(self.serie.data['Validation'].dropna())
 
+        # Prévisions one step ahead 
+        serie_predite = []
+        for i in range(longueur_test):
+            modele = SARIMAX(self.serie.data['Série'][0:self.serie.index_fin_entrainement+i],
+                order=config[0],
+                seasonal_order=config[1],
+                trend=config[2],
+                simple_differencing=False)
+            try:
+                modele_fit = modele.fit(disp=False, method='lbfgs', maxiter=50)
+                yhat = modele_fit.forecast(steps=1).values[0]
+            except:
+                print("t+1 = t ")
 
+            serie_predite.append(yhat)
+
+        # Prévisions dynamiques
         modele = SARIMAX(self.serie.data['Série'][0:self.serie.index_fin_entrainement],
                         order=config[0],
                         seasonal_order=config[1],
                         trend=config[2],
                         simple_differencing=False)
 
-        modele_fit = modele.fit(disp=False, method='lbfgs', maxiter=50)
+        modele_fit = modele.fit(disp=False)
 
         if modele_fit.mle_retvals['converged'] == False:
             print("     > Convergence non atteinte pour " + str(config))
 
-        serie_predite = modele_fit.predict(start=self.serie.index_fin_entrainement, end=len(self.serie.data['Série'])-1)
-
+        serie_predite_dynamique = modele_fit.predict(start=self.serie.index_fin_entrainement, end=len(self.serie.data['Série'])-1, dynamic=True)
 
         # on conserve le modele pour obtenir d'autres infos plus tard
         self.modele_fit = modele_fit
@@ -77,13 +92,16 @@ class SARIMA(Modele):
             (1, len(self.serie.data['Entraînement'].dropna())))
         a[:] = np.nan
         serie_predite = np.concatenate((a[0], np.array(serie_predite)), axis=0)
-        return serie_predite
+        serie_predite_dynamique = np.concatenate((a[0], np.array(serie_predite_dynamique)), axis=0)
+
+        self.serie.data[self.__class__.__name__] = serie_predite
+        self.serie.data[self.__class__.__name__ + "_dynamique"] = serie_predite_dynamique
 
 
     def fit(self):
         print("Configuration SARIMA retenue : " + str(self.config))
 
-        self.serie.data[self.__class__.__name__] = self.fit_modele(self.config)
+        self.fit_modele(self.config)
 
         print(self.modele_fit.summary())
 

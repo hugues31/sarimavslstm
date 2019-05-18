@@ -83,7 +83,7 @@ class LSTM(Modele):
         resultat = None
         key = str(config)
 
-        iter = 5 if final else 1  # entraînement final du modèle retenu
+        iter = 500 if final else 50  # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
@@ -259,5 +259,10 @@ class LSTM(Modele):
         plt.show()
 
         # Graphique du modèle retenu
-        plot_model(self.modele, to_file="outputs/" + self.nom_sauvegarde +
-                   "_schema.pdf", show_shapes=True, expand_nested=True, dpi=300)
+        # Le plot peut 
+        try:
+            plot_model(self.modele, to_file="outputs/" + self.nom_sauvegarde +
+            "_schema.pdf", show_shapes=True, expand_nested=True, dpi=300)
+        except:
+            pass
+
