@@ -15,11 +15,11 @@ class Serie:
     modeles = []
 
     def __init__(self, nom, csv_file=None, formule=None, std=None):
-        points = 160
+        points = 500
 
         self.nom = nom
         self.nom_sauvegarde = nom.replace(" ", "_").lower().replace("é","e")
-        self.modeles = [Naive(), SARIMA(), LSTM()]
+        self.modeles = [Naive(), LSTM()]
 
         # charge fichier CSV
         if csv_file:
@@ -111,6 +111,38 @@ class Serie:
             pad_inches=0)
         plt.show()
 
+
+    def graphique_prevision_dynamique(self):
+        """
+            Affiche la série prévue de façon dynamique pour les modèles
+            (valeur prévue t = modele(valeur prévue par modele t-1)
+        """
+
+        donnees = pd.DataFrame(self.data['Série'])
+        legende = list()
+        legende.append("Série")
+
+        for modele in self.modeles:
+            donnees[modele.__class__.__name__] = modele.serie.data[modele.__class__.__name__ + "_dynamique"]
+            legende.append("Prévision dynamique " + str(modele.__class__.__name__))
+
+        # ratio d'affichage carré 4:10 (en inch)
+        plt.figure(figsize=(10, 4))
+
+        # Prévisions sur le jeu de test + validation
+        previsions = int((1 - entrainement) * len(self.data))
+        plt.plot(donnees.tail(previsions))
+        plt.xticks(np.arange(len(donnees)-previsions, len(donnees), step=1))
+        plt.gca().legend(legende)
+        plt.title(str(previsions) +
+                  " dernières prévisions dynamiques des modèles sur " + self.nom)
+        plt.ylabel("Y")
+        plt.xlabel("X")
+        plt.savefig("outputs/" + self.nom_sauvegarde +
+                    '_previsions_dynamique_serie.pdf', dpi=300, bbox_inches='tight',
+                    pad_inches=0)
+        plt.show()
+
     def graphique_sous_serie(self):
         """
             Affiche uniquement la série, décomposée en 3 sous-séries
@@ -186,7 +218,7 @@ class Serie:
         self.graphique_sous_serie()
         self.graphique_serie_stationnarisee()
         self.graphique_prevision_one_step_ahead() # valeur prévue t = modele(valeur donnée t-1)
-        # self.graphique_prevision_dynamique()  # valeur prévue t = modele(valeur prévue par modele t-1)
+        self.graphique_prevision_dynamique()  # valeur prévue t = modele(valeur prévue par modele t-1)
 
 
 

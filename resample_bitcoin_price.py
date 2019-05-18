@@ -28,7 +28,7 @@ def get_bitcoin_ohlc(frame, freq='1D'):
 
 
 df = create_dataframe()
-ohlc = get_bitcoin_ohlc(df, freq='1H')
+ohlc = get_bitcoin_ohlc(df, freq='1D')
 
 # on enregistre les changements en pourcentage
 ohlc.pct_change().to_csv(asksaveasfilename(

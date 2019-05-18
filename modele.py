@@ -17,18 +17,28 @@ class Modele:
 
     def recapitulatif(self):
         y_reel = self.serie.data['Validation'].dropna()
-        y_pred = self.serie.data[self.__class__.__name__][self.serie.index_fin_test:]
-        
-        mse = mean_squared_error(y_reel, y_pred)
-        medae = median_absolute_error(y_reel, y_pred)
-        var_expliquee = explained_variance_score(y_reel, y_pred)
-        r2 = r2_score(y_reel, y_pred)
+
+        nom_previsions = ["Prévision one step ahead", "Prévision dynamique"]
+        series = [self.serie.data[self.__class__.__name__]
+                  [self.serie.index_fin_test:], self.serie.data[self.__class__.__name__ + "_dynamique"][self.serie.index_fin_test:]]
 
         print("|")
         print("|    --- " + self.__class__.__name__ + " ---")
-        print("|    MSE       : " + str(mse))
-        print("|    MedAE     : " + str(medae))
-        print("|    Var. expl : " + str(var_expliquee))
-        print("|    R^2       : " + str(r2))
+        print("|")
+
+        for i, serie in enumerate(series):
+            y_pred = serie
+            
+            mse = mean_squared_error(y_reel, y_pred)
+            medae = median_absolute_error(y_reel, y_pred)
+            var_expliquee = explained_variance_score(y_reel, y_pred)
+            r2 = r2_score(y_reel, y_pred)
+
+            print("|    - " + nom_previsions[i] + " -")
+            print("|    MSE       : " + str(mse))
+            print("|    MedAE     : " + str(medae))
+            print("|    Var. expl : " + str(var_expliquee))
+            print("|    R^2       : " + str(r2))
+            print("|")
         print("----------")
 
