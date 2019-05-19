@@ -7,6 +7,7 @@ from lstm import LSTM
 import numpy as np
 from statsmodels.tsa.stattools import adfuller
 
+
 entrainement = 0.6  # 60% du jeu de données sert à l'entraînement
 test = 0.2          # 20% du jeu de données sert aux tests (20 derniers % pour la validation)
 
@@ -19,7 +20,7 @@ class Serie:
 
         self.nom = nom
         self.nom_sauvegarde = nom.replace(" ", "_").lower().replace("é","e")
-        self.modeles = [Naive(), SARIMA(), LSTM()]
+        self.modeles = [Naive(), SARIMA()]
 
         # charge fichier CSV
         if csv_file:
@@ -68,8 +69,8 @@ class Serie:
         result = adfuller(self.data['Série stationnarisée'].dropna().values)
         adf = result[0]
         seuil_5 = result[4].get("5%")
-
-        print(result)
+        # print(result)
+  
 
         if adf > seuil_5:
             # Ne devrait pas arriver

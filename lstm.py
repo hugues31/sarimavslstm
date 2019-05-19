@@ -61,7 +61,7 @@ class LSTM(Modele):
             scores = executor(tasks)
 
         else:
-            scores = [self.fit_modele(config) for config in config_list]
+            scores = [self.fit_modele(config) for config in config_list[0:1]]
 
         # Enleve les scores vides
         scores = [r for r in scores if r[1] != None]
@@ -83,7 +83,7 @@ class LSTM(Modele):
         resultat = None
         key = str(config)
 
-        iter = 500 if final else 50  # entraînement final du modèle retenu
+        iter = 10 if final else 1  # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
@@ -227,9 +227,6 @@ class LSTM(Modele):
             serie_predite_dynamique = np.concatenate(
                 (a[0], np.array(serie_predite_dynamique)), axis=0)
 
-
-            print(len(serie_predite_dynamique))
-            print(len(self.serie.data))
             self.serie.data[self.__class__.__name__ +
                             "_dynamique"] = serie_predite_dynamique
             self.modele = model

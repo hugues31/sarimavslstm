@@ -1,3 +1,4 @@
+from math import *
 from modele import Modele
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import numpy as np
@@ -17,8 +18,36 @@ class SARIMA(Modele):
         pass
 
     def trouver_hyperparametres(self):
+        # détermination de la fréquence de la saisonnalité
+
+        ##### difference premiere
+        t = np.diff(self.serie.data['Série'][0:self.serie.index_fin_entrainement], n=1)
+
+        w = np.fft.fft(t)   # fft
+
+        # on cherche les périodes de saisonnalité < 30 (et pas la premiere)
+        tableau = np.absolute(w)[1:30]
+
+        # print("Max : " + str(np.max(tableau)))
+        # print("Moyenne : " + str(np.mean(tableau)))
+        # print("Std : " + str(np.std(tableau)))
+        # print("Borne : " + str(np.mean(tableau) + 4 * np.std(tableau)))
+
+        if max(tableau) < np.mean(tableau) + 4 * np.std(tableau):
+            frequence = 1
+
+        else:
+            # on rajoute la premiere période
+            repetition = max(range(len(tableau)), key=tableau.__getitem__) + 1
+
+            frequence = int((len(t)+1)/repetition)  # +1 car différenciée une fois
+
+
+        print("Fréquence détectée --> " + str(frequence))
+
+        # détermination des ordres p, d, q, P, D, Q sur l'ensemble de train
         stepwise_fit = pm.auto_arima(self.serie.data['Série'][0:self.serie.index_fin_test],
-                                     start_p=2, d=None, start_q=2, max_p=2, max_d=2, max_q=2, start_P=1, D=None, start_Q=1, max_P=1, max_D=1, max_Q=1, m=12, seasonal=True, trace=True,
+                                     start_p=2, d=None, start_q=2, max_p=5, max_d=3, max_q=5, start_P=2, D=None, start_Q=1, max_P=5, max_D=3, max_Q=5, m=frequence, seasonal=True, seasonal_test='ocsb', trace=True,
                                      error_action='ignore',
                                      suppress_warnings=True,
                                      stepwise=True,
@@ -56,16 +85,21 @@ class SARIMA(Modele):
         # Prévisions one step ahead 
         serie_predite = []
         for i in range(longueur_test):
+            print("Prévision one-step ahead : " + str(i) + " sur " + str(longueur_test))
             modele = SARIMAX(self.serie.data['Série'][0:self.serie.index_fin_entrainement+i],
                 order=config[0],
                 seasonal_order=config[1],
                 trend=config[2],
                 simple_differencing=False)
             try:
-                modele_fit = modele.fit(disp=False, method='lbfgs', maxiter=50)
+                modele_fit = modele.fit(disp=False)
                 yhat = modele_fit.forecast(steps=1).values[0]
+                
+            except KeyboardInterrupt:
+                break
+
             except:
-                print("t+1 = t ")
+                print("t+1 = t")
 
             serie_predite.append(yhat)
 

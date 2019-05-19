@@ -8,19 +8,22 @@ def charger_series():
 
     # Tendance linéaire + saisonnalité simple de période 12
     serie_2 = Serie("Série 2", formule="sin(x*pi/6)*4+0.3*x", std=1.8)
-    return [serie_2]
 
     # Tendance linéaire + saisonnalité de période 12 multiplicative
     serie_3 = Serie("Série 3", formule="sin(x*pi/6)*4*(0.01*x)+0.3*x", std=1.8)
-    return [serie_3]
 
     # Tendance non polynomiale + saisonnalités imbriquées non multiples 
     serie_4 = Serie(
         "Série 4", formule="(sin(x*pi/3.5)*18-sin(x*pi/6)*15)+sin(x*pi/40)*40+((4*x)**0.4)*30", std=2.8)
 
-    serie_bitcoin = Serie("Rendement horaire du Bitcoin", csv_file="rendements_bitcoin_4H.csv")
-    
+    # Série production de bières en Australie de 19XX à 19XX
+    serie_bieres = Serie("Production de bières", csv_file="production_biere_australie.csv")
+    return [serie_bieres]
 
+    # Série financière très bruitée : les rendements du Bitcoin
+    serie_bitcoin = Serie("Rendement horaire du Bitcoin", csv_file="rendements_bitcoin_4H.csv")    
+
+    return [serie_3]
     return [serie_1, serie_2, serie_3, serie_4, serie_bitcoin]
 
 series = charger_series()   # synthétiques + données réelles
