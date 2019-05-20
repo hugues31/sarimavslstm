@@ -12,7 +12,7 @@ from keras.utils import plot_model
 import numpy as np
 
 from modele import Modele
-from fonctions import decouper_serie_apprentissage_supervise
+from fonctions import decouper_serie_apprentissage_supervise, enregistrer_plot
 
 
 class LSTM(Modele):
@@ -33,7 +33,7 @@ class LSTM(Modele):
             print("Il est recommandé d'installer joblib (pip3 install joblib)\
                 pour profiter d'une amélioration des performances.")
             parallel = False
-        parallel = False
+
         config_list = list()
         for h in range(1, 4):
             for i in [20, 20, 50]:
@@ -49,14 +49,13 @@ class LSTM(Modele):
                             }
                             config_list.append(config)
 
-        config_list = config_list[:1]   # debug
         print("Taille des combinaisons LSTM : " + str(len(config_list)))
 
         if parallel:
             executor = joblib.Parallel(joblib.cpu_count(
-            ), backend='multiprocessing', verbose=50, batch_size='auto')
+            ), backend='loky', verbose=50, batch_size='auto')
             tasks = (joblib.delayed(self.fit_modele)(config)
-                     for config in config_list)
+                     for config in config_list[0:1])
 
             scores = executor(tasks)
 
@@ -83,7 +82,7 @@ class LSTM(Modele):
         resultat = None
         key = str(config)
 
-        iter = 10 if final else 1  # entraînement final du modèle retenu
+        iter = 50 if final else 5  # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
@@ -141,9 +140,9 @@ class LSTM(Modele):
                       loss='mse')
 
         # Critère d'arret prématuré, aucune amélioration sur le jeu de test
-        # pendant plus de 30 itérations
+        # pendant plus de 20 itérations
         critere_stop = EarlyStopping(
-            monitor='val_loss', min_delta=0, patience=30)
+            monitor='val_loss', min_delta=0, patience=20)
 
         # Fit du modèle
         historique = model.fit(
@@ -156,7 +155,8 @@ class LSTM(Modele):
         serie_predite = []
         serie_predite_temp = []  # stock les prédictions réduites
         serie_predite_dynamique = []
-        # walk-forward validation
+
+        # walk-forward validation (one step ahead)
         for i in range(0, len(self.serie.data['Test'].dropna())+len(self.serie.data['Validation'].dropna())):
 
             x_input = self.serie.data['Série stationnarisée réduite'][self.serie.index_fin_entrainement -
@@ -251,8 +251,9 @@ class LSTM(Modele):
         plt.ylabel('Perte')
         plt.xlabel('Itération')
         plt.legend(['Entraînement', 'Test'], loc='upper right')
-        plt.savefig("outputs/" + self.nom_sauvegarde +
-                    '_evolution_perte.pdf', dpi=300)
+
+        enregistrer_plot(plt, self.nom_sauvegarde + '_evolution_perte.pdf')
+
         plt.show()
 
         # Graphique du modèle retenu

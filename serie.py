@@ -6,7 +6,7 @@ from sarima import SARIMA
 from lstm import LSTM
 import numpy as np
 from statsmodels.tsa.stattools import adfuller
-
+from fonctions import enregistrer_plot
 
 entrainement = 0.6  # 60% du jeu de données sert à l'entraînement
 test = 0.2          # 20% du jeu de données sert aux tests (20 derniers % pour la validation)
@@ -107,9 +107,9 @@ class Serie:
         plt.title(str(previsions) + " dernières prévisions des modèles sur " + self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
-        plt.savefig("outputs/" + self.nom_sauvegarde +
-            '_previsions_serie.pdf', dpi=300, bbox_inches='tight',
-            pad_inches=0)
+
+        enregistrer_plot(plt, self.nom_sauvegarde + '_previsions_serie.pdf')
+
         plt.show()
 
 
@@ -138,9 +138,8 @@ class Serie:
         plt.title("Prévisions dynamiques sur l'ensemble test + validation des modèles sur " + self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
-        plt.savefig("outputs/" + self.nom_sauvegarde +
-                    '_previsions_dynamique_serie.pdf', dpi=300, bbox_inches='tight',
-                    pad_inches=0)
+
+        enregistrer_plot(plt, self.nom_sauvegarde + '_previsions_dynamique_serie.pdf')
         plt.show()
 
     def graphique_sous_serie(self):
@@ -157,9 +156,9 @@ class Serie:
         plt.title(self.nom)
         plt.ylabel("Y")
         plt.xlabel("X")
-        plt.savefig("outputs/" + self.nom_sauvegarde +
-                    '_presentation_serie.pdf', dpi=300, bbox_inches='tight',
-                    pad_inches=0)
+
+        enregistrer_plot(plt, self.nom_sauvegarde + '_presentation_serie.pdf')
+
         plt.show()
 
     def graphique_serie_stationnarisee(self):
@@ -194,9 +193,8 @@ class Serie:
             ax3.text(0, y, '%s : %.3f' % (key, value), fontsize=11)
             y -= 0.1
 
-        plt.savefig("outputs/" + self.nom_sauvegarde +
-                    '_stationnarisation_serie.pdf', dpi=300, bbox_inches='tight',
-                    pad_inches=0)
+        enregistrer_plot(plt, self.nom_sauvegarde +
+                         '_stationnarisation_serie.pdf')
         plt.show()
     
 

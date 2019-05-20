@@ -26,3 +26,6 @@ def tableau_en_latex(tableau):
         dimensions. La première ligne est l'en-tête du tableau.
     """
     pass
+
+def enregistrer_plot(plot, nom):
+    plot.savefig("outputs/" + nom, dpi=300, bbox_inches='tight', pad_inches=0)

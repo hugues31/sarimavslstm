@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error
 import math
 import matplotlib.pyplot as plt
 from pandas import DataFrame
+from fonctions import enregistrer_plot
 
 class SARIMA(Modele):
     """
@@ -20,18 +21,13 @@ class SARIMA(Modele):
     def trouver_hyperparametres(self):
         # détermination de la fréquence de la saisonnalité
 
-        ##### difference premiere
+        # difference premiere
         t = np.diff(self.serie.data['Série'][0:self.serie.index_fin_entrainement], n=1)
 
         w = np.fft.fft(t)   # fft
 
         # on cherche les périodes de saisonnalité < 30 (et pas la premiere)
-        tableau = np.absolute(w)[1:30]
-
-        # print("Max : " + str(np.max(tableau)))
-        # print("Moyenne : " + str(np.mean(tableau)))
-        # print("Std : " + str(np.std(tableau)))
-        # print("Borne : " + str(np.mean(tableau) + 4 * np.std(tableau)))
+        tableau = np.absolute(w)[1:-(int(0.1*len(t)))]
 
         if max(tableau) < np.mean(tableau) + 4 * np.std(tableau):
             frequence = 1
@@ -39,15 +35,15 @@ class SARIMA(Modele):
         else:
             # on rajoute la premiere période
             repetition = max(range(len(tableau)), key=tableau.__getitem__) + 1
+            frequence = round((len(t)+1)/repetition)  # +1 car différenciée une fois
 
-            frequence = int((len(t)+1)/repetition)  # +1 car différenciée une fois
-
-
-        print("Fréquence détectée --> " + str(frequence))
+        print("Période détectée de la saisonnalité : " + str(frequence))
 
         # détermination des ordres p, d, q, P, D, Q sur l'ensemble de train
         stepwise_fit = pm.auto_arima(self.serie.data['Série'][0:self.serie.index_fin_test],
-                                     start_p=2, d=None, start_q=2, max_p=5, max_d=3, max_q=5, start_P=2, D=None, start_Q=1, max_P=5, max_D=3, max_Q=5, m=frequence, seasonal=True, seasonal_test='ocsb', trace=True,
+                                     start_p=2, d=None, start_q=2, max_p=5, max_d=4, max_q=5,
+                                     start_P=2, D=None, start_Q=1, max_P=5, max_D=4, max_Q=5,
+                                     m=frequence, seasonal=True, seasonal_test='ocsb', trace=True,
                                      error_action='ignore',
                                      suppress_warnings=True,
                                      stepwise=True,
@@ -56,9 +52,19 @@ class SARIMA(Modele):
                                      trend=None,
                                      with_intercept=False)
 
-
         print(stepwise_fit.summary())
         print(stepwise_fit.get_params())
+
+        fig = stepwise_fit.plot_diagnostics(figsize=(10, 10), lags=12)
+        fig.axes[0].set_title("Résidus normalisés")
+        fig.axes[1].set_title("Comparaison de la densité estimée avec N(0,1)")
+        fig.axes[2].set_title("Diagramme Quantile-Quantile")
+        fig.axes[2].set_xlabel("Quantiles théoriques")
+        fig.axes[2].set_ylabel("Quantiles échantillonnés")
+        fig.axes[3].set_title("Corrélogramme")
+        enregistrer_plot(plt, self.nom_sauvegarde + '_diagnostic.pdf')
+        plt.show()
+        
         params = stepwise_fit.get_params()
         ordres = params['order']
         ordres_saisonniers = params['seasonal_order']
@@ -143,16 +149,7 @@ class SARIMA(Modele):
         print(residuals.describe())
     
     def description_modele(self):
-
-        # affichage de la distribution des résidus
-        plt.figure(figsize=(10, 4))
-        plt.title("Résidus issus du modèle")
-        plt.plot(self.modele_fit.resid)
-        plt.show()
-
-        plt.figure(figsize=(10, 4))
-        plt.title("Distribution des résidus")
-        plt.hist(self.modele_fit.resid, bins=30)
-        plt.show()
+        # déjà décrit à la fin de la recherche des hyper paramètres
+        pass
 
 
