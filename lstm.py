@@ -36,10 +36,10 @@ class LSTM(Modele):
 
         config_list = list()
         for h in range(1, 4):
-            for i in [20, 20, 50]:
-                for n in [20, 50, 200]:
+            for i in [10, 20, 50]:
+                for n in [10, 50, 200]:
                     for f in ['tanh', 'relu', 'sigmoid']:
-                        for d in [0.1, 0.2]:
+                        for d in [0.0, 0.2]:
                             config = {
                                 'nbre_couches': h,
                                 'taille_entree': i,
@@ -82,7 +82,7 @@ class LSTM(Modele):
         resultat = None
         key = str(config)
 
-        iter = 50 if final else 5  # entraînement final du modèle retenu
+        iter = 500 if final else 5  # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")

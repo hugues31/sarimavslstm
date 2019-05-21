@@ -20,7 +20,7 @@ class Serie:
 
         self.nom = nom
         self.nom_sauvegarde = nom.replace(" ", "_").lower().replace("é","e")
-        self.modeles = [Naive(), SARIMA()]
+        self.modeles = [Naive(), SARIMA(), LSTM()]
 
         # charge fichier CSV
         if csv_file:
