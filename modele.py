@@ -6,7 +6,7 @@ class Modele:
         pass
     
     def definir_serie(self, serie):
-        print("===" + serie.nom + " | " + self.__class__.__name__ + "===")
+        print("=== " + serie.nom + " | " + self.__class__.__name__ + " ===")
         self.serie = serie
         self.nom_sauvegarde = serie.nom_sauvegarde + "_" + self.__class__.__name__
 

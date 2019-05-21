@@ -33,7 +33,7 @@ class LSTM(Modele):
             print("Il est recommandé d'installer joblib (pip3 install joblib)\
                 pour profiter d'une amélioration des performances.")
             parallel = False
-
+        parallel = False # nécessite plus de 16 GB de RAM
         config_list = list()
         for h in range(1, 4):
             for i in [10, 20, 50]:
@@ -60,7 +60,7 @@ class LSTM(Modele):
             scores = executor(tasks)
 
         else:
-            scores = [self.fit_modele(config) for config in config_list[0:1]]
+            scores = [self.fit_modele(config) for config in config_list]
 
         # Enleve les scores vides
         scores = [r for r in scores if r[1] != None]
@@ -146,7 +146,7 @@ class LSTM(Modele):
 
         # Fit du modèle
         historique = model.fit(
-            X_train, y_train, validation_data=(X_test, y_test), epochs=iter, verbose=True, callbacks=[critere_stop], shuffle=False)
+            X_train, y_train, validation_data=(X_test, y_test), epochs=iter, verbose=final, callbacks=[critere_stop], shuffle=False)
 
         if final:  # sauvegarde de l'historique d'entrainement si modèle final
             self.historique = historique
