@@ -76,13 +76,13 @@ class LSTM(Modele):
 
     def fit_modele(self, config, final=False):
         """
-            Fait un fit rapide (50 itérations par défaut) d'un LSTM selon les
+            Fait un fit rapide (100 itérations par défaut) d'un LSTM selon les
             paramètres contenus dans config (h, n, f, d)
         """
         resultat = None
         key = str(config)
 
-        iter = 500 if final else 5  # entraînement final du modèle retenu
+        iter = 500 if final else 100  # entraînement final du modèle retenu
 
         nbre_couches = config.get("nbre_couches")
         taille = config.get("taille_entree")
